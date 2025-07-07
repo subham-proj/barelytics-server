@@ -1,14 +1,16 @@
 import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
-import testRoutes from './routes/testRoutes.js';
+import utilsRoutes from './routes/utilsRoutes.js';
+import authRoutes from './routes/authRoutes.js';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // Use the test routes
-app.use('/', testRoutes);
+app.use('/', utilsRoutes);
+app.use('/', authRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
