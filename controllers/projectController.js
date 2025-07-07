@@ -65,14 +65,6 @@ export const updateProject = async (req, res) => {
     return res.status(401).json({ error: 'Invalid or expired access token.' });
   }
   
-  // Debug: Log the values we're using
-  console.log('Update query params:', { 
-    projectId, 
-    projectIdType: typeof projectId, 
-    userId: user.id, 
-    userIdType: typeof user.id 
-  });
-  
   const { data, error } = await supabase
     .from('projects')
     .update({ name, description, updated_at: new Date().toISOString() })
@@ -81,8 +73,6 @@ export const updateProject = async (req, res) => {
     .select()
     .maybeSingle();
 
-  // Debug: Log the result
-  console.log('Update result:', { data, error });
   
   if (error) return res.status(400).json({ error: error.message });
   if (!data) return res.status(404).json({ error: 'Project not found or not owned by user.' });
@@ -94,16 +84,10 @@ export const deleteProject = async (req, res) => {
   const supabase = req.supabaseUser;
   if (!id) return res.status(400).json({ error: 'Project id is required.' });
   
-  // Convert string id to integer for INTEGER column
-  const projectId = parseInt(id, 10);
-  if (isNaN(projectId)) {
-    return res.status(400).json({ error: 'Invalid project id format. Must be a number.' });
-  }
-  
   const { error } = await supabase
     .from('projects')
     .delete()
-    .eq('id', projectId);
+    .eq('id', id);
   if (error) return res.status(400).json({ error: error.message });
   res.json({ message: 'Project deleted successfully.' });
 }; 
