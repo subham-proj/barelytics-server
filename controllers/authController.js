@@ -1,4 +1,8 @@
-import supabase from '../supabaseClient.js';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export const signup = async (req, res) => {
   const { email, password, ...userMetadata } = req.body;
