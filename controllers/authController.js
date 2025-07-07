@@ -28,9 +28,25 @@ export const login = async (req, res) => {
   }
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return res.status(400).json({ error: error.message });
+  const user = data.user;
+  const session = data.session;
   res.json({
     message: 'Login successful.',
-    user: data.user,
-    session: data.session
+    user: {
+      id: user.id,
+      email: user.email,
+      email_confirmed: !!user.email_confirmed_at,
+      created_at: user.created_at,
+      last_sign_in_at: user.last_sign_in_at,
+      user_metadata: {
+        email_verified: user.user_metadata?.email_verified || false
+      }
+    },
+    session: session && {
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_in: session.expires_in,
+      token_type: session.token_type
+    }
   });
 }; 

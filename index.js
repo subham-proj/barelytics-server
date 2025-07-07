@@ -8,7 +8,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Use the test routes
 app.use('/', utilsRoutes);
 app.use('/', authRoutes);
 
