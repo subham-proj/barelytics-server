@@ -1,3 +1,5 @@
+import { TABLES } from '../constants.js';
+
 export const getProjects = async (req, res) => {
   const supabase = req.supabaseUser;
   
@@ -11,13 +13,109 @@ export const getProjects = async (req, res) => {
   }
   
   const { data, error } = await supabase
-    .from('projects')
+    .from(TABLES.PROJECTS)
     .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
     
   if (error) return res.status(400).json({ error: error.message });
   res.json(data || []);
+};
+
+export const getProjectConfig = async (req, res) => {
+  const { id } = req.params;
+  const supabase = req.supabaseUser;
+  if (!id) return res.status(400).json({ error: 'Project id is required.' });
+  
+  // Get user_id from JWT
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return res.status(401).json({ error: 'Invalid or expired access token.' });
+  }
+  
+  const { data, error } = await supabase
+    .from(TABLES.PROJECT_CONFIGS)
+    .select('*')
+    .eq('project_id', id)
+    .eq('user_id', user.id)
+    .single();
+    
+  if (error) {
+    if (error.code === 'PGRST116') {
+      return res.status(404).json({ error: 'Project configuration not found.' });
+    }
+    return res.status(400).json({ error: error.message });
+  }
+  
+  res.json(data);
+};
+
+export const updateProjectConfig = async (req, res) => {
+  const { id } = req.params;
+  const configData = req.body;
+  const supabase = req.supabaseUser;
+  if (!id) return res.status(400).json({ error: 'Project id is required.' });
+  if (!configData || Object.keys(configData).length === 0) {
+    return res.status(400).json({ error: 'Configuration data is required.' });
+  }
+  
+  // Get user_id from JWT
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return res.status(401).json({ error: 'Invalid or expired access token.' });
+  }
+  
+  // Check if config exists
+  const { data: existingConfig } = await supabase
+    .from(TABLES.PROJECT_CONFIGS)
+    .select('id')
+    .eq('project_id', id)
+    .eq('user_id', user.id)
+    .single();
+  
+  let result;
+  if (existingConfig) {
+    // Update existing config with individual columns
+    const updateData = {
+      ...configData,
+      updated_at: new Date().toISOString()
+    };
+    
+    const { data, error } = await supabase
+      .from(TABLES.PROJECT_CONFIGS)
+      .update(updateData)
+      .eq('project_id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single();
+    
+    if (error) return res.status(400).json({ error: error.message });
+    result = data;
+  } else {
+    // Create new config with individual columns
+    const insertData = {
+      project_id: id,
+      user_id: user.id,
+      ...configData
+    };
+    
+    const { data, error } = await supabase
+      .from(TABLES.PROJECT_CONFIGS)
+      .insert([insertData])
+      .select()
+      .single();
+    
+    if (error) return res.status(400).json({ error: error.message });
+    result = data;
+  }
+  
+  res.json(result);
 };
 
 export const createProject = async (req, res) => {
@@ -35,7 +133,7 @@ export const createProject = async (req, res) => {
     return res.status(400).json({ error: 'Project name is required.' });
   }
   const { data, error } = await supabase
-    .from('projects')
+    .from(TABLES.PROJECTS)
     .insert([{ name, description, user_id: user.id }])
     .select()
     .maybeSingle();
@@ -46,15 +144,10 @@ export const createProject = async (req, res) => {
 
 export const updateProject = async (req, res) => {
   const { id } = req.params;
+  console.log(id);
   const { name, description } = req.body;
   const supabase = req.supabaseUser;
   if (!id) return res.status(400).json({ error: 'Project id is required.' });
-  
-  // Convert string id to integer for INTEGER column
-  const projectId = parseInt(id, 10);
-  if (isNaN(projectId)) {
-    return res.status(400).json({ error: 'Invalid project id format. Must be a number.' });
-  }
   
   // Get user_id from JWT
   const {
@@ -65,15 +158,25 @@ export const updateProject = async (req, res) => {
     return res.status(401).json({ error: 'Invalid or expired access token.' });
   }
   
+  // Select query to check if project exists
+  const { data: existingProject, error: selectError } = await supabase
+    .from(TABLES.PROJECTS)
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  console.log('Select query result:', { existingProject, selectError, user: user.id });
+  
   const { data, error } = await supabase
-    .from('projects')
+    .from(TABLES.PROJECTS)
     .update({ name, description, updated_at: new Date().toISOString() })
-    .eq('id', projectId)
+    .eq('id', id)
     .eq('user_id', user.id)
     .select()
     .maybeSingle();
 
-  
+  console.log('Update query result:', { data, error, user: user.id });
+
   if (error) return res.status(400).json({ error: error.message });
   if (!data) return res.status(404).json({ error: 'Project not found or not owned by user.' });
   res.json(data);
@@ -85,7 +188,7 @@ export const deleteProject = async (req, res) => {
   if (!id) return res.status(400).json({ error: 'Project id is required.' });
   
   const { error } = await supabase
-    .from('projects')
+    .from(TABLES.PROJECTS)
     .delete()
     .eq('id', id);
   if (error) return res.status(400).json({ error: error.message });
