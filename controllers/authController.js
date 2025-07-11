@@ -4,6 +4,11 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+/**
+ * Sign up a new user with email and password.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
 export const signup = async (req, res) => {
   const { email, password, ...userMetadata } = req.body;
   if (!email || !password) {
@@ -25,6 +30,11 @@ export const signup = async (req, res) => {
   });
 };
 
+/**
+ * Sign in a user with email and password.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
 export const login = async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {

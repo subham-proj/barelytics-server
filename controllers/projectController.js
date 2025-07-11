@@ -1,5 +1,10 @@
 import { TABLES } from '../constants.js';
 
+/**
+ * Get all projects for the authenticated user.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
 export const getProjects = async (req, res) => {
   const supabase = req.supabaseUser;
   
@@ -22,6 +27,11 @@ export const getProjects = async (req, res) => {
   res.json(data || []);
 };
 
+/**
+ * Get the configuration for a specific project for the authenticated user.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
 export const getProjectConfig = async (req, res) => {
   const { id } = req.params;
   const supabase = req.supabaseUser;
@@ -53,6 +63,12 @@ export const getProjectConfig = async (req, res) => {
   res.json(data);
 };
 
+/**
+ * Update or create the configuration for a specific project for the authenticated user.
+ * Accepts individual config columns in the request body.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
 export const updateProjectConfig = async (req, res) => {
   const { id } = req.params;
   const configData = req.body;
@@ -118,6 +134,11 @@ export const updateProjectConfig = async (req, res) => {
   res.json(result);
 };
 
+/**
+ * Create a new project for the authenticated user.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
 export const createProject = async (req, res) => {
   const { name, description } = req.body;
   const supabase = req.supabaseUser;
@@ -142,6 +163,11 @@ export const createProject = async (req, res) => {
   res.status(201).json(data);
 };
 
+/**
+ * Update a project for the authenticated user.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
 export const updateProject = async (req, res) => {
   const { id } = req.params;
   console.log(id);
@@ -182,6 +208,11 @@ export const updateProject = async (req, res) => {
   res.json(data);
 };
 
+/**
+ * Delete a project for the authenticated user.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
 export const deleteProject = async (req, res) => {
   const { id } = req.params;
   const supabase = req.supabaseUser;
