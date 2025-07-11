@@ -5,6 +5,7 @@ import utilsRoutes from './routes/utilsRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import projectRoutes from './routes/projectRoutes.js';
 import trackingRoutes from './routes/trackingRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
 
 const app = express();
 app.use(cors());
@@ -13,6 +14,7 @@ app.use(express.json());
 app.use('/api', utilsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/analytics', analyticsRoutes);
 app.use('/api', trackingRoutes);
 
 const PORT = process.env.PORT || 3000;
