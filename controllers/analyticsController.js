@@ -224,7 +224,7 @@ export const getOverview = async (req, res) => {
  */
 export const getTopPages = async (req, res) => {
   const { project_id, from, to, limit = 5 } = req.query;
-  const supabase = req.supabaseAdmin;
+  const supabase = req.supabaseUser;
   if (!project_id) return res.status(400).json({ error: 'project_id is required.' });
 
   const { data, error } = await supabase.rpc('get_top_pages', {
@@ -244,7 +244,7 @@ export const getTopPages = async (req, res) => {
  */
 export const getTopReferrers = async (req, res) => {
   const { project_id, from, to, limit = 5 } = req.query;
-  const supabase = req.supabaseAdmin;
+  const supabase = req.supabaseUser;
   if (!project_id) return res.status(400).json({ error: 'project_id is required.' });
 
   const { data, error } = await supabase.rpc('get_top_referrers', {
