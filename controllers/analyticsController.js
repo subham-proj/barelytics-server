@@ -1,53 +1,96 @@
 import { TABLES } from '../constants.js';
+import { getMonthRanges, toISOString } from '../utils/dateHelpers.js';
 
 /**
- * Get analytics overview for a project (authenticated).
+ * Get analytics overview for a project (authenticated), including % change from last month.
  * @param {import('express').Request} req
  * @param {import('express').Response} res
  */
 export const getOverview = async (req, res) => {
-  const { project_id, from, to } = req.query;
+  const { project_id } = req.query;
   const supabase = req.supabaseUser;
   if (!project_id) return res.status(400).json({ error: 'project_id is required.' });
 
-  // Date filter
-  let rangeFilter = '';
-  if (from && to) {
-    rangeFilter = `and(created_at.gte.${from},created_at.lte.${to})`;
-  } else if (from) {
-    rangeFilter = `and(created_at.gte.${from})`;
-  } else if (to) {
-    rangeFilter = `and(created_at.lte.${to})`;
-  }
+  // Get current and previous calendar month ranges
+  const { current, previous } = getMonthRanges();
+  const currentFrom = current.from;
+  const currentTo = current.to;
+  const prevFrom = previous.from;
+  const prevTo = previous.to;
 
-  // Total Visitors (unique visitor_id)
-  const { count: total_visitors } = await supabase
+  // --- Total Visitors ---
+  // Current month
+  const { count: curr_visitors } = await supabase
     .from(TABLES.TRACKING_EVENTS)
     .select('visitor_id', { count: 'exact', head: true })
     .eq('project_id', project_id)
     .eq('event_type', 'page_view')
     .neq('visitor_id', null)
+    .gte('created_at', toISOString(currentFrom))
+    .lte('created_at', toISOString(currentTo))
+    .maybeSingle();
+  // Previous month
+  const { count: prev_visitors } = await supabase
+    .from(TABLES.TRACKING_EVENTS)
+    .select('visitor_id', { count: 'exact', head: true })
+    .eq('project_id', project_id)
+    .eq('event_type', 'page_view')
+    .neq('visitor_id', null)
+    .gte('created_at', toISOString(prevFrom))
+    .lte('created_at', toISOString(prevTo))
     .maybeSingle();
 
-  // Page Views
-  const { count: page_views } = await supabase
+  const prevVisitorsCount = prev_visitors || 0;
+  const currVisitorsCount = curr_visitors || 0;
+  let visitors_percent;
+  if (prevVisitorsCount === 0) {
+    visitors_percent = currVisitorsCount === 0 ? 0 : 100;
+  } else {
+    visitors_percent = ((currVisitorsCount - prevVisitorsCount) / prevVisitorsCount) * 100;
+  }
+
+  // --- Page Views ---
+  // Current month
+  const { count: curr_page_views } = await supabase
     .from(TABLES.TRACKING_EVENTS)
     .select('*', { count: 'exact', head: true })
     .eq('project_id', project_id)
     .eq('event_type', 'page_view')
+    .gte('created_at', toISOString(currentFrom))
+    .lte('created_at', toISOString(currentTo))
+    .maybeSingle();
+  // Previous month
+  const { count: prev_page_views } = await supabase
+    .from(TABLES.TRACKING_EVENTS)
+    .select('*', { count: 'exact', head: true })
+    .eq('project_id', project_id)
+    .eq('event_type', 'page_view')
+    .gte('created_at', toISOString(prevFrom))
+    .lte('created_at', toISOString(prevTo))
     .maybeSingle();
 
-  // Avg. Session (approximate: avg duration per session_id)
-  // For simplicity, not implemented in this stub
-  const avg_session = '2m 34s';
+  const prevPageViewsCount = prev_page_views || 0;
+  const currPageViewsCount = curr_page_views || 0;
+  let page_views_percent;
+  if (prevPageViewsCount === 0) {
+    page_views_percent = currPageViewsCount === 0 ? 0 : 100;
+  } else {
+    page_views_percent = ((currPageViewsCount - prevPageViewsCount) / prevPageViewsCount) * 100;
+  }
 
-  // Bounce Rate (sessions with only one page_view)
-  // For simplicity, not implemented in this stub
-  const bounce_rate = 34.2;
+  // --- Placeholders for other metrics ---
+  const avg_session = null;
+  const bounce_rate = null;
 
   res.json({
-    total_visitors: total_visitors || 0,
-    page_views: page_views || 0,
+    total_visitors: {
+      value: currVisitorsCount,
+      percent_change: visitors_percent
+    },
+    page_views: {
+      value: currPageViewsCount,
+      percent_change: page_views_percent
+    },
     avg_session,
     bounce_rate
   });
