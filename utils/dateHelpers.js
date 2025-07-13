@@ -76,4 +76,20 @@ export const formatMonthYear = (date) => {
     year: 'numeric', 
     month: 'long' 
   });
+};
+
+/**
+ * Calculate previous period of same duration as given date range
+ * @param {Date} fromDate - Start date of current period
+ * @param {Date} toDate - End date of current period
+ * @returns {Object} Object containing previous period from and to dates
+ */
+export const getPreviousPeriod = (fromDate, toDate) => {
+  const durationMs = toDate.getTime() - fromDate.getTime();
+  // prevTo: one ms before currentFrom, at 23:59:59.999
+  const prevTo = new Date(fromDate.getTime() - 1);
+  // prevFrom: prevTo - duration, set to 00:00:00.000
+  const prevFrom = new Date(prevTo.getTime() - durationMs);
+  prevFrom.setUTCHours(0, 0, 0, 0);
+  return { from: prevFrom, to: prevTo };
 }; 
