@@ -6,17 +6,56 @@
 export const trackEvent = async (req, res) => {
   const {
     project_id,
-    event_type
+    event_type, 
+    event,      
+    event_name, 
+    session_id,
+    visitor_id,
+    url,
+    page_url,
+    page_title,
+    referrer,
+    location,
+    props,
+    properties,
+    ts,
+    browser,
+    device,
+    country,
+    country_name
   } = req.body;
 
-  if (!project_id || !event_type) {
+  if (!project_id || !(event_type || req.body.type)) {
     return res.status(400).json({ error: 'project_id and event_type are required.' });
   }
 
-  // Insert into tracking_events table
+  const type = event_type || req.body.type;
+  const eventName = event_name || event;
+
+  const insertData = {
+    project_id,
+    event_type: type,
+    event_name: eventName,
+    session_id,
+    visitor_id,
+    page_url: page_url || url,
+    page_title,
+    referrer,
+    location,
+    properties: properties || props,
+    created_at: ts ? new Date(ts).toISOString() : undefined,
+    browser,
+    device,
+    country,
+    country_name
+  };
+
+  // Remove undefined fields
+  Object.keys(insertData).forEach(key => insertData[key] === undefined && delete insertData[key]);
+
   const { data, error } = await req.supabaseAdmin
     .from('tracking_events')
-    .insert([req.body])
+    .insert([insertData])
     .select()
     .single();
 
