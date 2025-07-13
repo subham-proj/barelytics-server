@@ -311,3 +311,375 @@ export const getTopReferrers = async (req, res) => {
   if (error) return res.status(400).json({ error: error.message });
   res.json(data || []);
 }; 
+
+/**
+ * Get new vs returning visitors for a project.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+export const getNewVsReturning = async (req, res) => {
+  const { project_id, from, to } = req.query;
+  const supabase = req.supabaseUser;
+  if (!project_id) return res.status(400).json({ error: 'project_id is required.' });
+
+  // Parse date range
+  let currentFrom, currentTo;
+  if (from && to) {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(from) || !dateRegex.test(to)) {
+      return res.status(400).json({ error: 'Date format must be YYYY-MM-DD' });
+    }
+    currentFrom = new Date(from + 'T00:00:00.000Z');
+    currentTo = new Date(to + 'T23:59:59.999Z');
+    if (currentFrom >= currentTo) {
+      return res.status(400).json({ error: 'From date must be before to date' });
+    }
+  } else {
+    const { current } = getMonthRanges();
+    currentFrom = current.from;
+    currentTo = current.to;
+  }
+
+  // Fetch all visitors in the range
+  const { data: events, error } = await supabase
+    .from(TABLES.TRACKING_EVENTS)
+    .select('visitor_id, created_at')
+    .eq('project_id', project_id)
+    .eq('event_type', 'page_view')
+    .neq('visitor_id', null)
+    .gte('created_at', toISOString(currentFrom))
+    .lte('created_at', toISOString(currentTo));
+  if (error) return res.status(400).json({ error: error.message });
+
+  // Find first seen date for each visitor (across all time)
+  const { data: allEvents, error: allError } = await supabase
+    .from(TABLES.TRACKING_EVENTS)
+    .select('visitor_id, created_at')
+    .eq('project_id', project_id)
+    .eq('event_type', 'page_view')
+    .neq('visitor_id', null);
+  if (allError) return res.status(400).json({ error: allError.message });
+
+  // Map visitor_id to their first seen date
+  const firstSeenMap = {};
+  allEvents.forEach(ev => {
+    if (!firstSeenMap[ev.visitor_id] || new Date(ev.created_at) < new Date(firstSeenMap[ev.visitor_id])) {
+      firstSeenMap[ev.visitor_id] = ev.created_at;
+    }
+  });
+
+  // Classify visitors in the range as new or returning
+  let newCount = 0, returningCount = 0;
+  const seen = new Set();
+  events.forEach(ev => {
+    if (seen.has(ev.visitor_id)) return; // Only count each visitor once
+    seen.add(ev.visitor_id);
+    if (firstSeenMap[ev.visitor_id] >= toISOString(currentFrom) && firstSeenMap[ev.visitor_id] <= toISOString(currentTo)) {
+      newCount++;
+    } else {
+      returningCount++;
+    }
+  });
+  const total = newCount + returningCount;
+  const newPercent = total === 0 ? 0 : (newCount / total) * 100;
+  const returningPercent = total === 0 ? 0 : (returningCount / total) * 100;
+
+  res.json({
+    new: Math.round(newPercent * 10) / 10,
+    returning: Math.round(returningPercent * 10) / 10,
+    new_count: newCount,
+    returning_count: returningCount,
+    total
+  });
+}; 
+
+/**
+ * Get conversion rate for a project.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+export const getConversionRate = async (req, res) => {
+  const { project_id, from, to } = req.query;
+  const supabase = req.supabaseUser;
+  if (!project_id) return res.status(400).json({ error: 'project_id is required.' });
+
+  // Parse date range
+  let currentFrom, currentTo;
+  if (from && to) {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(from) || !dateRegex.test(to)) {
+      return res.status(400).json({ error: 'Date format must be YYYY-MM-DD' });
+    }
+    currentFrom = new Date(from + 'T00:00:00.000Z');
+    currentTo = new Date(to + 'T23:59:59.999Z');
+    if (currentFrom >= currentTo) {
+      return res.status(400).json({ error: 'From date must be before to date' });
+    }
+  } else {
+    const { current } = getMonthRanges();
+    currentFrom = current.from;
+    currentTo = current.to;
+  }
+
+  // Total unique visitors in the range
+  const { data: visitorData, error: visitorError } = await supabase
+    .from(TABLES.TRACKING_EVENTS)
+    .select('visitor_id')
+    .eq('project_id', project_id)
+    .eq('event_type', 'page_view')
+    .neq('visitor_id', null)
+    .gte('created_at', toISOString(currentFrom))
+    .lte('created_at', toISOString(currentTo));
+  if (visitorError) return res.status(400).json({ error: visitorError.message });
+  const uniqueVisitors = visitorData ? new Set(visitorData.map(v => v.visitor_id)).size : 0;
+
+  // Total conversions in the range
+  const { count: conversions, error: convError } = await supabase
+    .from(TABLES.TRACKING_EVENTS)
+    .select('*', { count: 'exact', head: true })
+    .eq('project_id', project_id)
+    .eq('event_type', 'conversion')
+    .gte('created_at', toISOString(currentFrom))
+    .lte('created_at', toISOString(currentTo))
+    .maybeSingle();
+    
+  if (convError) return res.status(400).json({ error: convError.message || 'No conversions found' });
+
+  // Conversion rate = conversions / unique visitors
+  const rate = uniqueVisitors === 0 ? 0 : (conversions / uniqueVisitors) * 100;
+
+  res.json({
+    conversion_rate: Math.round(rate * 10) / 10,
+    conversions: conversions || 0,
+    unique_visitors: uniqueVisitors
+  });
+}; 
+
+/**
+ * Get global reach (number of unique countries) for a project.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+export const getGlobalReach = async (req, res) => {
+  const { project_id, from, to } = req.query;
+  const supabase = req.supabaseUser;
+  if (!project_id) return res.status(400).json({ error: 'project_id is required.' });
+
+  // Parse date range
+  let currentFrom, currentTo;
+  if (from && to) {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(from) || !dateRegex.test(to)) {
+      return res.status(400).json({ error: 'Date format must be YYYY-MM-DD' });
+    }
+    currentFrom = new Date(from + 'T00:00:00.000Z');
+    currentTo = new Date(to + 'T23:59:59.999Z');
+    if (currentFrom >= currentTo) {
+      return res.status(400).json({ error: 'From date must be before to date' });
+    }
+  } else {
+    const { current } = getMonthRanges();
+    currentFrom = current.from;
+    currentTo = current.to;
+  }
+
+  // Fetch all countries in the range
+  const { data, error } = await supabase
+    .from(TABLES.TRACKING_EVENTS)
+    .select('country')
+    .eq('project_id', project_id)
+    .neq('country', null)
+    .gte('created_at', toISOString(currentFrom))
+    .lte('created_at', toISOString(currentTo));
+  if (error) return res.status(400).json({ error: error.message });
+
+  const uniqueCountries = data ? new Set(data.map(row => row.country)).size : 0;
+
+  res.json({
+    countries: uniqueCountries
+  });
+}; 
+
+/**
+ * Get device type breakdown for a project.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+export const getDeviceTypes = async (req, res) => {
+  const { project_id, from, to } = req.query;
+  const supabase = req.supabaseUser;
+  if (!project_id) return res.status(400).json({ error: 'project_id is required.' });
+
+  // Parse date range
+  let currentFrom, currentTo;
+  if (from && to) {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(from) || !dateRegex.test(to)) {
+      return res.status(400).json({ error: 'Date format must be YYYY-MM-DD' });
+    }
+    currentFrom = new Date(from + 'T00:00:00.000Z');
+    currentTo = new Date(to + 'T23:59:59.999Z');
+    if (currentFrom >= currentTo) {
+      return res.status(400).json({ error: 'From date must be before to date' });
+    }
+  } else {
+    const { current } = getMonthRanges();
+    currentFrom = current.from;
+    currentTo = current.to;
+  }
+
+  // Fetch all device types in the range
+  const { data, error } = await supabase
+    .from(TABLES.TRACKING_EVENTS)
+    .select('device')
+    .eq('project_id', project_id)
+    .neq('device', null)
+    .gte('created_at', toISOString(currentFrom))
+    .lte('created_at', toISOString(currentTo));
+  if (error) return res.status(400).json({ error: error.message });
+
+  const counts = { desktop: 0, mobile: 0, tablet: 0, other: 0 };
+  let total = 0;
+  data.forEach(row => {
+    const type = (row.device || '').toLowerCase();
+    if (type === 'desktop') counts.desktop++;
+    else if (type === 'mobile') counts.mobile++;
+    else if (type === 'tablet') counts.tablet++;
+    else counts.other++;
+    total++;
+  });
+
+  const percent = key => (total === 0 ? 0 : (counts[key] / total) * 100);
+
+  res.json({
+    desktop: Math.round(percent('desktop') * 10) / 10,
+    mobile: Math.round(percent('mobile') * 10) / 10,
+    tablet: Math.round(percent('tablet') * 10) / 10,
+    other: Math.round(percent('other') * 10) / 10,
+    total
+  });
+}; 
+
+/**
+ * Get top locations (countries) for a project.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+export const getTopLocations = async (req, res) => {
+  const { project_id, from, to, limit = 5 } = req.query;
+  const supabase = req.supabaseUser;
+  if (!project_id) return res.status(400).json({ error: 'project_id is required.' });
+
+  // Parse date range
+  let currentFrom, currentTo;
+  if (from && to) {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(from) || !dateRegex.test(to)) {
+      return res.status(400).json({ error: 'Date format must be YYYY-MM-DD' });
+    }
+    currentFrom = new Date(from + 'T00:00:00.000Z');
+    currentTo = new Date(to + 'T23:59:59.999Z');
+    if (currentFrom >= currentTo) {
+      return res.status(400).json({ error: 'From date must be before to date' });
+    }
+  } else {
+    const { current } = getMonthRanges();
+    currentFrom = current.from;
+    currentTo = current.to;
+  }
+
+  // Fetch all countries in the range
+  const { data, error } = await supabase
+    .from(TABLES.TRACKING_EVENTS)
+    .select('country')
+    .eq('project_id', project_id)
+    .neq('country', null)
+    .gte('created_at', toISOString(currentFrom))
+    .lte('created_at', toISOString(currentTo));
+  if (error) return res.status(400).json({ error: error.message });
+
+  // Count visitors per country
+  const countryCounts = {};
+  data.forEach(row => {
+    const country = row.country;
+    if (!country) return;
+    countryCounts[country] = (countryCounts[country] || 0) + 1;
+  });
+
+  // Sort and limit
+  const sorted = Object.entries(countryCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, Number(limit))
+    .map(([country, count]) => ({ country, count }));
+
+  res.json(sorted);
+}; 
+
+/**
+ * Get browser analytics (breakdown) for a project.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+export const getBrowserAnalytics = async (req, res) => {
+  const { project_id, from, to } = req.query;
+  const supabase = req.supabaseUser;
+  if (!project_id) return res.status(400).json({ error: 'project_id is required.' });
+
+  // Parse date range
+  let currentFrom, currentTo;
+  if (from && to) {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(from) || !dateRegex.test(to)) {
+      return res.status(400).json({ error: 'Date format must be YYYY-MM-DD' });
+    }
+    currentFrom = new Date(from + 'T00:00:00.000Z');
+    currentTo = new Date(to + 'T23:59:59.999Z');
+    if (currentFrom >= currentTo) {
+      return res.status(400).json({ error: 'From date must be before to date' });
+    }
+  } else {
+    const { current } = getMonthRanges();
+    currentFrom = current.from;
+    currentTo = current.to;
+  }
+
+  // Fetch all browsers in the range
+  const { data, error } = await supabase
+    .from(TABLES.TRACKING_EVENTS)
+    .select('browser')
+    .eq('project_id', project_id)
+    .neq('browser', null)
+    .gte('created_at', toISOString(currentFrom))
+    .lte('created_at', toISOString(currentTo));
+  if (error) return res.status(400).json({ error: error.message });
+
+  // Count browsers
+  const browserCounts = {};
+  let total = 0;
+  data.forEach(row => {
+    const browser = (row.browser || 'Other').trim();
+    if (!browser) return;
+    browserCounts[browser] = (browserCounts[browser] || 0) + 1;
+    total++;
+  });
+
+  // Sort and get top 5
+  const sorted = Object.entries(browserCounts)
+    .sort((a, b) => b[1] - a[1]);
+  const top = sorted.slice(0, 5);
+  const otherCount = sorted.slice(5).reduce((sum, [, count]) => sum + count, 0);
+
+  // Format result
+  const result = top.map(([browser, count]) => ({
+    browser,
+    percent: total === 0 ? 0 : Math.round((count / total) * 1000) / 10
+  }));
+  if (otherCount > 0) {
+    result.push({ browser: 'Other', percent: total === 0 ? 0 : Math.round((otherCount / total) * 1000) / 10 });
+  }
+
+  res.json({
+    browsers: result,
+    total
+  });
+}; 
