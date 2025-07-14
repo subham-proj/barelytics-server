@@ -1,30 +1,61 @@
-# Barelytics Supabase Backend Setup
+# PageMetrics Backend
 
-## 1. Prerequisites
-- Node.js installed
-- Supabase account and project created ([supabase.com](https://supabase.com/))
+A Node.js + Express backend for analytics, user management, and project tracking, powered by Supabase.
 
-## 2. Install Dependencies
-```
-npm install
-```
+---
 
-## 3. Configure Environment Variables
-Create a `.env` file in the project root:
-```
-SUPABASE_URL=your-supabase-url
-SUPABASE_ANON_KEY=your-anon-key
-```
-Replace with your actual Supabase project credentials.
+## API Endpoints
 
-## 4. Start the Server
-```
-node index.js
-```
+### **Auth**
 
-## 5. Test the API
-Visit [http://localhost:3000/test](http://localhost:3000/test) to test the sample endpoint (make sure you have a `test_table` in your Supabase database).
+| Method | Endpoint         | Description                |
+|--------|------------------|---------------------------|
+| POST   | `/auth/signup`   | Register a new user       |
+| POST   | `/auth/login`    | Login (checks is_active)  |
 
-## 6. Customization
-- Edit `index.js` to add more endpoints or logic.
-- Use `supabaseClient.js` to interact with your Supabase backend. 
+### **User**
+
+| Method | Endpoint                | Description                        |
+|--------|-------------------------|------------------------------------|
+| GET    | `/user/account-settings`| Get user account settings          |
+| POST   | `/user/account-settings`| Update user account settings       |
+| POST   | `/user/change-password` | Change password (with verification)|
+| POST   | `/user/delete`          | Soft delete user (is_active=false) |
+
+### **Project**
+
+| Method | Endpoint         | Description                        |
+|--------|------------------|------------------------------------|
+| GET    | `/project/`      | List active projects for user      |
+| POST   | `/project/`      | Create a new project               |
+| PUT    | `/project/:id`   | Update a project                   |
+| DELETE | `/project/:id`   | Hard delete a project (if enabled) |
+| POST   | `/project/delete`| Soft delete (is_active=false)      |
+
+### **Analytics**
+
+| Method | Endpoint                    | Description                        |
+|--------|-----------------------------|------------------------------------|
+| GET    | `/analytics/overview`       | Project overview                   |
+| GET    | `/analytics/new-vs-returning`| New vs Returning Visitors         |
+| GET    | `/analytics/conversion-rate`| Conversion Rate                    |
+| GET    | `/analytics/global-reach`   | Unique countries                   |
+| GET    | `/analytics/device-types`   | Device type breakdown              |
+| GET    | `/analytics/top-locations`  | Top countries                      |
+| GET    | `/analytics/browser-analytics`| Browser breakdown                |
+| GET    | `/analytics/top-pages`      | Top pages                          |
+| GET    | `/analytics/top-referrers`  | Top referrers                      |
+
+### **Tracking**
+
+| Method | Endpoint         | Description                        |
+|--------|------------------|------------------------------------|
+| POST   | `/track/track`   | Track an event                     |
+| GET    | `/track/track`   | Get tracked events                 |
+
+---
+
+
+## License
+
+ISC 
