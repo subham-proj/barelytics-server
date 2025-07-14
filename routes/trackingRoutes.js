@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { trackEvent, getEvents } from '../controllers/trackingController.js';
-import { supabaseAdminClient } from '../middleware/supabaseAdminClient.js';
+import { supabaseAdminClient } from '../middleware/supabaseAdmin.js';
 
 const router = Router();
 

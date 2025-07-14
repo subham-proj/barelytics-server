@@ -52,4 +52,28 @@ export const updateAccountSettings = async (req, res) => {
     email: data.email,
     company: data.company
   });
+};
+
+/**
+ * Change user password (requires admin privileges)
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+export const changePassword = async (req, res) => {
+  const { user_id, new_password } = req.body;
+  const supabaseService = req.supabaseService;
+
+  if (!user_id || !new_password) {
+    return res.status(400).json({ error: 'user_id and new_password are required.' });
+  }
+
+  const { data, error } = await supabaseService.auth.admin.updateUserById(user_id, {
+    password: new_password,
+  });
+
+  if (error) {
+    return res.status(400).json({ error: error.message });
+  }
+
+  res.json({ message: 'Password updated successfully.' });
 }; 
