@@ -74,7 +74,7 @@ export const changePassword = async (req, res) => {
   });
 
   if (signInError) {
-    return res.status(401).json({ error: 'Current password is incorrect.' });
+    return res.status(400).json({ error: 'Current password is incorrect.' });
   }
 
   const { error: updateError } = await supabaseService.auth.admin.updateUserById(user_id, {
