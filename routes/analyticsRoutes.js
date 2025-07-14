@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getOverview, getTopPages, getTopReferrers, getNewVsReturning, getConversionRate, getGlobalReach, getDeviceTypes, getTopLocations, getBrowserAnalytics } from '../controllers/analyticsController.js';
-import { supabaseUserClient } from '../middleware/supabaseUserClient.js';
+import { supabaseUserClient } from '../middleware/supabaseUser.js';
 
 const router = Router();
 

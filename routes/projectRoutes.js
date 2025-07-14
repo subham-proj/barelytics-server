@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { createProject, getProjects, updateProject, deleteProject, getProjectConfig, updateProjectConfig } from '../controllers/projectController.js';
-import { supabaseUserClient } from '../middleware/supabaseUserClient.js';
+import { supabaseUserClient } from '../middleware/supabaseUser.js';
 
 const router = Router();
 
