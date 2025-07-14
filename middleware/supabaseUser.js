@@ -26,4 +26,17 @@ export function supabaseUserClient(req, res, next) {
     global: { headers: { Authorization: `Bearer ${userAccessToken}` } }
   });
   next();
-} 
+}
+
+/**
+ * Creates a Supabase client instance authenticated with the given user's access token.
+ * Useful for making authenticated Supabase requests on behalf of a user (e.g., after login).
+ *
+ * @param {string} token - The user's access token (JWT)
+ * @returns {import('@supabase/supabase-js').SupabaseClient} An authenticated Supabase client instance
+ */
+export function customSupabaseUserClient(token) {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } }
+  });
+}

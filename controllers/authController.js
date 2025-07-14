@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { customSupabaseUserClient } from '../middleware/supabaseUser.js';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
@@ -42,6 +43,16 @@ export const login = async (req, res) => {
   }
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return res.status(400).json({ error: error.message });
+
+  const supabaseUser = customSupabaseUserClient(data.session.access_token);
+  const { data: userData, error: userError } = await supabaseUser
+    .from('users')
+    .select('id, is_active')
+    .eq('email', email)
+    .maybeSingle();
+  if (userError) return res.status(500).json({ error: userError.message });
+  if (!userData || userData.is_active !== true) return res.status(403).json({ error: 'This account has been deactivated. Please contact support.' });
+  
   const user = data.user;
   const session = data.session;
   res.json({

@@ -87,3 +87,25 @@ export const changePassword = async (req, res) => {
 
   res.json({ message: 'Password updated successfully.' });
 }; 
+
+/**
+ * Soft delete a user (set is_active=false)
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+export const deleteUser = async (req, res) => {
+  const { user_id } = req.body;
+  const supabase = req.supabaseUser;
+  if (!user_id) return res.status(400).json({ error: 'user_id is required.' });
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({ is_active: false })
+    .eq('id', user_id)
+    .select('id, is_active')
+    .maybeSingle();
+  if (error) return res.status(400).json({ error: error.message });
+  if (!data) return res.status(404).json({ error: 'User not found or not updated.' });
+
+  res.json({ id: data.id, is_active: data.is_active });
+}; 

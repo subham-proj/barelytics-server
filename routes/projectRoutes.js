@@ -11,6 +11,7 @@ router.get('/', getProjects);
 router.post('/', createProject);
 router.put('/:id', updateProject);
 router.delete('/:id', deleteProject);
+router.post('/delete', deleteProject);
 
 // Project configuration routes
 router.get('/:id/config', getProjectConfig);

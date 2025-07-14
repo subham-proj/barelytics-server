@@ -21,6 +21,7 @@ export const getProjects = async (req, res) => {
     .from(TABLES.PROJECTS)
     .select('*')
     .eq('user_id', user.id)
+    .eq('is_active', true)
     .order('created_at', { ascending: false });
     
   if (error) return res.status(400).json({ error: error.message });
@@ -209,19 +210,23 @@ export const updateProject = async (req, res) => {
 };
 
 /**
- * Delete a project for the authenticated user.
+ * Soft delete a project (set is_active=false)
  * @param {import('express').Request} req
  * @param {import('express').Response} res
  */
 export const deleteProject = async (req, res) => {
-  const { id } = req.params;
+  const { project_id } = req.body;
   const supabase = req.supabaseUser;
-  if (!id) return res.status(400).json({ error: 'Project id is required.' });
-  
-  const { error } = await supabase
-    .from(TABLES.PROJECTS)
-    .delete()
-    .eq('id', id);
+  if (!project_id) return res.status(400).json({ error: 'project_id is required.' });
+
+  const { data, error } = await supabase
+    .from('projects')
+    .update({ is_active: false })
+    .eq('id', project_id)
+    .select('id, is_active')
+    .maybeSingle();
   if (error) return res.status(400).json({ error: error.message });
-  res.json({ message: 'Project deleted successfully.' });
+  if (!data) return res.status(404).json({ error: 'Project not found or not updated.' });
+
+  res.json({ id: data.id, is_active: data.is_active });
 }; 
