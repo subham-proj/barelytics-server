@@ -55,7 +55,7 @@ const getVisitorCounts = async (supabase, project_id, currentFrom, currentTo, pr
     .from(TABLES.TRACKING_EVENTS)
     .select('visitor_id')
     .eq('project_id', project_id)
-    .eq('event_type', 'page_view')
+    .eq('event_type', 'session')
     .neq('visitor_id', null)
     .gte('created_at', toISOString(currentFrom))
     .lte('created_at', toISOString(currentTo));
@@ -64,11 +64,11 @@ const getVisitorCounts = async (supabase, project_id, currentFrom, currentTo, pr
     .from(TABLES.TRACKING_EVENTS)
     .select('visitor_id')
     .eq('project_id', project_id)
-    .eq('event_type', 'page_view')
+    .eq('event_type', 'session')
     .neq('visitor_id', null)
     .gte('created_at', toISOString(prevFrom))
     .lte('created_at', toISOString(prevTo));
-  
+
   const currVisitorsCount = current_visitor_data ? new Set(current_visitor_data.map(v => v.visitor_id)).size : 0;
   const prevVisitorsCount = prev_visitor_data ? new Set(prev_visitor_data.map(v => v.visitor_id)).size : 0;
   
