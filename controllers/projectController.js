@@ -35,23 +35,12 @@ export const getProjects = async (req, res) => {
  */
 export const getProjectConfig = async (req, res) => {
   const { id } = req.params;
-  const supabase = req.supabaseUser;
   if (!id) return res.status(400).json({ error: 'Project id is required.' });
   
-  // Get user_id from JWT
-  const {
-    data: { user },
-    error: userError
-  } = await supabase.auth.getUser();
-  if (userError || !user) {
-    return res.status(401).json({ error: 'Invalid or expired access token.' });
-  }
-  
-  const { data, error } = await supabase
+  const { data, error } = await req.supabaseService
     .from(TABLES.PROJECT_CONFIGS)
     .select('*')
     .eq('project_id', id)
-    .eq('user_id', user.id)
     .single();
     
   if (error) {
