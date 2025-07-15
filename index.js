@@ -9,7 +9,14 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 
 const app = express();
-app.use(cors());
+const allowedOrigins = [
+  process.env.LOCAL_FRONTEND_URL, 
+  process.env.PRODUCTION_FRONTEND_URL 
+];
+app.use(cors({
+  origin: allowedOrigins,
+  credentials: true
+}));
 app.use(express.json());
 
 app.use('/api', utilsRoutes);
