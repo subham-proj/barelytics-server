@@ -1,4 +1,5 @@
-import { TABLES } from '../constants.js';
+import { PLANS, TABLES } from '../constants.js';
+import { triggerUpgrade } from '../services/paymentService.js';
 
 /**
  * Get user account settings (full name, email, company)
@@ -108,4 +109,81 @@ export const deleteUser = async (req, res) => {
   if (!data) return res.status(404).json({ error: 'User not found or not updated.' });
 
   res.json({ id: data.id, is_active: data.is_active });
+}; 
+
+/**
+ * Get the current user's subscription plan.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+export const getPlan = async (req, res) => {
+  const supabase = req.supabaseUser;
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return res.status(401).json({ error: 'Invalid or expired access token.' });
+  }
+  
+  const { data, error } = await supabase
+    .from(TABLES.USERS)
+    .select('plan')
+    .eq('id', user.id)
+    .maybeSingle(); 
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ plan: data.plan || 'free' });
+};
+
+/**
+ * Update the current user's subscription plan (upgrade/downgrade).
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+export const updatePlan = async (req, res) => {
+  const { plan } = req.body;
+  const validPlans = PLANS.map(p => p.key);
+  if (!plan || !validPlans.includes(plan)) {
+    return res.status(400).json({ error: 'Invalid plan.' });
+  }
+  const supabase = req.supabaseUser;
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return res.status(401).json({ error: 'Invalid or expired access token.' });
+  }
+  // Update user plan (assume users table has a plan column)
+  const { data, error } = await supabase
+    .from('users')
+    .update({ plan })
+    .eq('id', user.id)
+    .select()
+    .single();
+  if (error) return res.status(400).json({ error: error.message });
+  res.json({ message: `Plan updated to ${plan}.`, plan });
+}; 
+
+/**
+ * Initiate a payment flow for upgrading the user's plan (stub).
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+export const initiateUpgrade = async (req, res) => {
+  const { plan } = req.body;
+  const validPlans = PLANS.map(p => p.key);
+  if (!plan || !validPlans.includes(plan)) {
+    return res.status(400).json({ error: 'Invalid plan.' });
+  }
+  const supabase = req.supabaseUser;
+  const {
+    data: { user },
+    error: userError
+  } = await supabase.auth.getUser();
+  if (userError || !user) {
+    return res.status(401).json({ error: 'Invalid or expired access token.' });
+  }
+  const result = await triggerUpgrade(user.id, plan);
+  res.json(result);
 }; 

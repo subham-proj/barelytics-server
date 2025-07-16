@@ -22,6 +22,14 @@ A Node.js + Express backend for analytics, user management, and project tracking
 | POST   | `/user/change-password` | Change password (with verification)|
 | POST   | `/user/delete`          | Soft delete user (is_active=false) |
 
+### **Subscription**
+
+| Method | Endpoint                | Description                                 |
+|--------|-------------------------|---------------------------------------------|
+| GET    | `/user/plan`            | Get the current user's subscription plan    |
+| POST   | `/user/plan`            | Update the user's subscription plan         |
+| POST   | `/user/initiate-upgrade`| Initiate payment flow for plan upgrade (stub) |
+
 ### **Project**
 
 | Method | Endpoint         | Description                        |

@@ -1,3 +1,5 @@
+import { PLANS } from '../constants.js';
+
 /**
  * Track an event (unauthenticated, all event types in a single table).
  * @param {import('express').Request} req
@@ -27,6 +29,35 @@ export const trackEvent = async (req, res) => {
 
   if (!project_id || !(event_type || req.body.type)) {
     return res.status(400).json({ error: 'project_id and event_type are required.' });
+  }
+
+  // Enforce page view limit for authenticated users
+  if ((event_type || req.body.type) === 'page_view' && req.user) {
+    const supabase = req.supabaseUser;
+    // Get user_id from JWT
+    const {
+      data: { user },
+      error: userError
+    } = await supabase.auth.getUser();
+    if (!userError && user) {
+      const userPlan = user.plan || 'free';
+      const plan = PLANS.find(p => p.key === userPlan);
+      // Count user's page views for this month
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      const { data: pageViews, error: pageViewsError } = await supabase
+        .from('tracking_events')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('event_type', 'page_view')
+        .gte('created_at', startOfMonth.toISOString());
+      if (pageViewsError) return res.status(400).json({ error: pageViewsError.message });
+      const pageViewCount = pageViews?.length || 0;
+      if (plan && plan.pageViews && pageViewCount >= plan.pageViews) {
+        return res.status(403).json({ error: `Your plan allows up to ${plan.pageViews} page views per month. Upgrade your plan to track more.` });
+      }
+    }
   }
 
   const type = event_type || req.body.type;

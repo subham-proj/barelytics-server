@@ -4,3 +4,63 @@ export const TABLES = {
   USERS: 'users',
   TRACKING_EVENTS: 'tracking_events',
 };
+
+// Subscription Plans
+export const PLANS = [
+  {
+    name: "Free",
+    key: "free",
+    price: 0,
+    priceDisplay: "$0",
+    period: "/mo",
+    description: "Get started with essential analytics for small sites.",
+    features: [
+      "Up to 5,000 page views/mo",
+      "1 website",
+      "Basic dashboard",
+      "Referrer & location tracking",
+      "Privacy-first analytics",
+    ],
+    pageViews: 5000,
+    websites: 1,
+    highlighted: false,
+  },
+  {
+    name: "Pro",
+    key: "pro",
+    price: 19,
+    priceDisplay: "$19",
+    period: "/mo",
+    description: "Advanced analytics for growing businesses.",
+    features: [
+      "Up to 100,000 page views/mo",
+      "10 websites",
+      "Advanced dashboard & insights",
+      "Custom events",
+      "Email reports",
+      "Priority support",
+    ],
+    pageViews: 100000,
+    websites: 10,
+    highlighted: true,
+  },
+  {
+    name: "Business",
+    key: "business",
+    price: 49,
+    priceDisplay: "$49",
+    period: "/mo",
+    description: "For high-traffic sites and agencies.",
+    features: [
+      "Up to 1M page views/mo",
+      "Unlimited websites",
+      "All Pro features",
+      "Team access",
+      "Custom integrations",
+      "Dedicated support",
+    ],
+    pageViews: 1000000,
+    websites: Infinity,
+    highlighted: false,
+  },
+];

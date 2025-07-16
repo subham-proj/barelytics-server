@@ -1,4 +1,4 @@
-import { TABLES } from '../constants.js';
+import { PLANS, TABLES } from '../constants.js';
 
 /**
  * Get all projects for the authenticated user.
@@ -142,6 +142,19 @@ export const createProject = async (req, res) => {
   }
   if (!name) {
     return res.status(400).json({ error: 'Project name is required.' });
+  }
+  // Get user's plan (assume user.plan exists)
+  const userPlan = user.plan || 'free';
+  const plan = PLANS.find(p => p.key === userPlan);
+  // Count user's existing projects
+  const { data: projects, error: projectsError } = await supabase
+    .from('projects')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('is_active', true);
+  if (projectsError) return res.status(400).json({ error: projectsError.message });
+  if (projects && plan && plan.websites !== Infinity && projects.length >= plan.websites) {
+    return res.status(403).json({ error: `Your plan allows up to ${plan.websites} website(s). Upgrade your plan to add more.` });
   }
   const { data, error } = await supabase
     .from(TABLES.PROJECTS)
