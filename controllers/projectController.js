@@ -1,4 +1,4 @@
-import { TABLES } from '../constants.js';
+import { TABLES, MAX_PROJECTS_PER_USER } from '../constants.js';
 
 /**
  * Get all projects for the authenticated user.
@@ -130,7 +130,7 @@ export const updateProjectConfig = async (req, res) => {
  * @param {import('express').Response} res
  */
 export const createProject = async (req, res) => {
-  const { name, description } = req.body;
+  const { name, description, website } = req.body;
   const supabase = req.supabaseUser;
   // Get user_id from JWT
   const {
@@ -143,9 +143,23 @@ export const createProject = async (req, res) => {
   if (!name) {
     return res.status(400).json({ error: 'Project name is required.' });
   }
+
+  // Project Limit Check
+  const { data: userProjects, error: countError } = await supabase
+    .from(TABLES.PROJECTS)
+    .select('id', { count: 'exact' })
+    .eq('user_id', user.id)
+    .eq('is_active', true);
+  if (countError) {
+    return res.status(500).json({ error: 'Failed to check user projects.' });
+  }
+  if (userProjects && userProjects.length >= MAX_PROJECTS_PER_USER) {
+    return res.status(400).json({ error: `Limit reached. You can only create up to ${MAX_PROJECTS_PER_USER} projects.` });
+  }
+
   const { data, error } = await supabase
     .from(TABLES.PROJECTS)
-    .insert([{ name, description, user_id: user.id }])
+    .insert([{ name, description, website: website, user_id: user.id }])
     .select()
     .maybeSingle();
   if (error) return res.status(400).json({ error: error.message });
@@ -190,8 +204,6 @@ export const updateProject = async (req, res) => {
     .eq('user_id', user.id)
     .select()
     .maybeSingle();
-
-  console.log('Update query result:', { data, error, user: user.id });
 
   if (error) return res.status(400).json({ error: error.message });
   if (!data) return res.status(404).json({ error: 'Project not found or not owned by user.' });
